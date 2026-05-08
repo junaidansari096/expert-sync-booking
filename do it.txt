@@ -1,0 +1,55 @@
+i receaved an internship project first make a full implemention plan and then ask me if there is any changes i want to do in that implemention plan youse all of your skills and make the best possible out come.  Build a Real-Time Expert Session Booking System.
+If you know React Native, build a mobile app. If not, build the frontend using React (web).
+Backend must be built using Node.js + Express + MongoDB.
+
+1️⃣ Expert Listing Screen
+Display experts (name, category, experience, rating)
+Search by name
+Filter by category
+Pagination
+Proper loading & error states
+2️⃣ Expert Detail Screen
+Show expert details
+Display available time slots grouped by date
+Slots must update in real-time when booked by another user
+3️⃣ Booking Screen
+Form fields:
+Name, Email, Phone, Date, Time Slot, Notes
+
+Requirements:
+Proper validation
+Show success message after booking
+Disable booked slot
+4️⃣ My Bookings Screen
+Show bookings by email
+Display booking status:
+Pending
+Confirmed
+Completed
+🛠 Backend Requirements
+Use proper folder structure (routes / controllers / models).
+Required APIs
+GET /experts (with pagination + filter)
+GET /experts/:id
+POST /bookings
+PATCH /bookings/:id/status
+GET /bookings?email=
+⚠ Critical Requirements
+1️⃣ Prevent Double Booking
+System must prevent:
+Same expert Same date
+Same time slot
+From being booked twice (handle race condition properly).
+2️⃣ Real-Time Slot Update
+Use either:
+Socket.io (preferred), OR
+Polling mechanism
+3️⃣ Proper Error Handling
+Validation required
+Meaningful error responses
+Use environment variables
+
+📦 Submission Requirements
+GitHub repository link
+One video of the application or website built. 
+Deployment is optional but preferred.
