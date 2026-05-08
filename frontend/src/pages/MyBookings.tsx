@@ -28,7 +28,7 @@ export default function MyBookings() {
     setLoading(true);
     setSearched(true);
     try {
-      const { data } = await axios.get(`http://localhost:5000/api/bookings?email=${encodeURIComponent(email)}`);
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings?email=${encodeURIComponent(email)}`);
       setBookings(data);
     } catch (error) {
       console.error('Error fetching bookings', error);
@@ -41,7 +41,7 @@ export default function MyBookings() {
     if (!window.confirm('Are you sure you want to cancel this session?')) return;
     
     try {
-      await axios.post(`http://localhost:5000/api/bookings/${id}/cancel`);
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings/${id}/cancel`);
       // Update local state
       setBookings(bookings.map(b => b._id === id ? { ...b, status: 'Cancelled' } : b));
     } catch (error) {

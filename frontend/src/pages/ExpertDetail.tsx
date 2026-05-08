@@ -31,7 +31,7 @@ export default function ExpertDetail() {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    socket = io('http://localhost:5000');
+    socket = io(import.meta.env.VITE_API_URL);
 
     socket.on('slotBooked', (data: { expertId: string, date: string, timeSlot: string }) => {
       if (data.expertId === id) {
@@ -56,7 +56,7 @@ export default function ExpertDetail() {
   useEffect(() => {
     const fetchExpert = async () => {
       try {
-        const { data } = await axios.get(`http://localhost:5000/api/experts/${id}`);
+        const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/experts/${id}`);
         setExpert(data);
         if (data.availableSlots && data.availableSlots.length > 0) {
           setSelectedDate(data.availableSlots[0].date);

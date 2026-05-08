@@ -1,0 +1,33 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: expert-sync-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: PORT
+        value: 5000
+
+  # Frontend Static Site
+  - type: web
+    name: expert-sync-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    staticPublishCustomHeaders: []
+    # Redirect all routes to index.html for React Router
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

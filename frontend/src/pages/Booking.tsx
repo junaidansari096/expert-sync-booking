@@ -34,7 +34,7 @@ export default function Booking() {
   useEffect(() => {
     const fetchExpert = async () => {
       try {
-        const { data } = await axios.get(`http://localhost:5000/api/experts/${id}`);
+        const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/experts/${id}`);
         setExpert(data);
       } catch (error) {
         console.error('Error fetching expert', error);
@@ -56,7 +56,7 @@ export default function Booking() {
     setLoading(true);
     setErrorMsg('');
     try {
-      await axios.post('http://localhost:5000/api/bookings', {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, {
         expertId: id,
         date,
         timeSlot,

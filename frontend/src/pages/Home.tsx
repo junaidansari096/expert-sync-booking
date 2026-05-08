@@ -13,7 +13,7 @@ export default function Home() {
   useEffect(() => {
     const fetchExperts = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/experts');
+        const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/experts`);
         setExperts(data.experts);
       } catch (error) {
         console.error('Error fetching experts', error);
