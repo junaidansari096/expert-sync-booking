@@ -1,11 +1,25 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import axios from 'axios';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { Search, Calendar, Clock, Inbox } from 'lucide-react';
 
 export default function MyBookings() {
   const [email, setEmail] = useState('');
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    gsap.from('.stagger-item', {
+      y: 20,
+      opacity: 0,
+      duration: 0.6,
+      stagger: 0.1,
+      ease: 'power2.out',
+    });
+  }, { scope: containerRef });
 
   const fetchBookings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,81 +37,119 @@ export default function MyBookings() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'Confirmed': return 'bg-green-100 text-green-700 border-green-200';
-      case 'Completed': return 'bg-slate-100 text-slate-700 border-slate-200';
-      default: return 'bg-amber-100 text-amber-700 border-amber-200';
+  const handleCancel = async (id: string) => {
+    if (!window.confirm('Are you sure you want to cancel this session?')) return;
+    
+    try {
+      await axios.post(`http://localhost:5000/api/bookings/${id}/cancel`);
+      // Update local state
+      setBookings(bookings.map(b => b._id === id ? { ...b, status: 'Cancelled' } : b));
+    } catch (error) {
+      console.error('Error cancelling booking', error);
+      alert('Failed to cancel the booking. Please try again.');
+    }
+  };
+
+  const getStatusStyle = (status: string) => {
+    switch(status.toLowerCase()) {
+      case 'confirmed': return 'border-foreground text-foreground';
+      case 'completed': return 'border-muted text-muted-foreground';
+      case 'cancelled': return 'border-red-900/30 text-red-500 bg-red-500/5';
+      default: return 'border-border text-foreground';
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div className="text-center max-w-xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-900 mb-4">Your Sessions</h1>
-        <p className="text-slate-600 mb-8">Enter your email address to view all your past and upcoming expert sessions.</p>
+    <div className="max-w-4xl mx-auto space-y-12" ref={containerRef}>
+      <div className="text-center max-w-xl mx-auto stagger-item">
+        <h1 className="text-4xl font-light tracking-tight text-foreground mb-4">Your Sessions</h1>
+        <p className="text-muted-foreground mb-8 text-sm">Enter your email address to retrieve your booking history and upcoming schedules.</p>
         
-        <form onSubmit={fetchBookings} className="flex gap-3">
+        <form onSubmit={fetchBookings} className="flex gap-4">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email address used for booking"
-            className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+            placeholder="Email address"
+            className="flex-1 bg-background border border-border px-4 py-3 text-sm focus:border-foreground focus:ring-1 focus:ring-foreground outline-none transition-all placeholder:text-muted-foreground"
             required
           />
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold transition-all disabled:opacity-70"
+            className="px-6 py-3 bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-all disabled:opacity-50 flex items-center gap-2"
           >
-            {loading ? 'Searching...' : 'Find Bookings'}
+            {loading ? 'Searching...' : <>Search <Search size={16} /></>}
           </button>
         </form>
       </div>
 
       {searched && !loading && (
-        <div className="mt-12">
+        <div className="mt-12 stagger-item">
           {bookings.length === 0 ? (
-            <div className="text-center p-12 bg-white rounded-3xl border border-slate-100 shadow-sm">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <div className="text-center p-16 minimal-card">
+              <div className="w-16 h-16 rounded-full border border-border flex items-center justify-center mx-auto mb-6 text-muted-foreground">
+                <Inbox size={24} />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 mb-1">No bookings found</h3>
-              <p className="text-slate-500">We couldn't find any bookings associated with {email}.</p>
+              <h3 className="text-lg font-medium text-foreground mb-2">No Records Found</h3>
+              <p className="text-muted-foreground text-sm">No active or past sessions located for {email}.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {bookings.map((booking) => (
-                <div key={booking._id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(booking.status)}`}>
+                <div key={booking._id} className="minimal-card p-6 flex flex-col stagger-item group">
+                  <div className="flex justify-between items-start mb-6">
+                    <span className={`px-3 py-1 text-[10px] uppercase tracking-widest border transition-colors ${getStatusStyle(booking.status)}`}>
                       {booking.status}
                     </span>
-                    <span className="text-sm font-medium text-slate-500">
-                      ID: {booking._id.slice(-6).toUpperCase()}
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {booking._id.slice(-6).toUpperCase()}
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-1">{booking.expertId?.name || 'Expert'}</h3>
-                  <p className="text-sm text-blue-600 font-medium mb-4">{booking.expertId?.category}</p>
                   
-                  <div className="bg-slate-50 rounded-xl p-4 space-y-2 border border-slate-100">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Date</span>
-                      <span className="font-medium text-slate-900">{booking.date}</span>
+                  <div className="mb-6">
+                    <h3 className="text-xl font-medium text-foreground mb-1">{booking.expertId?.name || 'Expert'}</h3>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wider">{booking.expertId?.category}</p>
+                  </div>
+                  
+                  <div className="space-y-3 border-t border-border pt-6">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar size={14} />
+                        <span>Date</span>
+                      </div>
+                      <span className="text-foreground">{booking.date}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Time</span>
-                      <span className="font-medium text-slate-900">{booking.timeSlot}</span>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock size={14} />
+                        <span>Time</span>
+                      </div>
+                      <span className="text-foreground">{booking.timeSlot}</span>
                     </div>
                   </div>
                   
                   {booking.notes && (
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <p className="text-xs font-medium text-slate-500 mb-1">Your notes</p>
-                      <p className="text-sm text-slate-700 italic">"{booking.notes}"</p>
+                    <div className="mt-6 pt-6 border-t border-border">
+                      <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Notes</p>
+                      <p className="text-sm text-foreground">"{booking.notes}"</p>
                     </div>
                   )}
+
+                  <div className="mt-8 pt-6 border-t border-border">
+                    {booking.status !== 'Cancelled' && booking.status !== 'Completed' ? (
+                      <button
+                        onClick={() => handleCancel(booking._id)}
+                        className="w-full py-2 border border-border text-[10px] uppercase tracking-widest text-muted-foreground hover:border-red-900/50 hover:text-red-500 hover:bg-red-500/5 transition-all"
+                      >
+                        Cancel Session
+                      </button>
+                    ) : (
+                      <div className="w-full py-2 text-center text-[10px] uppercase tracking-widest text-muted-foreground/30 italic">
+                        Action unavailable
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

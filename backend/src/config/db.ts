@@ -5,12 +5,14 @@ let mongoServer: MongoMemoryServer;
 
 const connectDB = async () => {
     try {
-        mongoServer = await MongoMemoryServer.create();
-        const uri = mongoServer.getUri();
+        const uri = process.env.MONGO_URI;
+        if (!uri) {
+            throw new Error('MONGO_URI is not defined in the environment variables');
+        }
         await mongoose.connect(uri);
-        console.log('MongoDB Memory Server Connected...');
+        console.log('MongoDB Connected successfully...');
     } catch (err: any) {
-        console.error(err.message);
+        console.error(`MongoDB connection error: ${err.message}`);
         process.exit(1);
     }
 };

@@ -58,6 +58,12 @@ router.post('/bookings', async (req, res) => {
         const newBooking = new Booking({ expertId, userName, userEmail, userPhone, date, timeSlot, notes });
         await newBooking.save();
 
+        // Update Expert availableSlots to remove the booked time slot
+        await Expert.updateOne(
+            { _id: expertId, 'availableSlots.date': date },
+            { $pull: { 'availableSlots.$.times': timeSlot } }
+        );
+
         // Emit socket event here. We will pass io in req.app.get('io') in index.ts
         const io = req.app.get('io');
         if (io) {
@@ -104,6 +110,37 @@ router.get('/bookings', async (req, res) => {
         res.json(bookings);
     } catch (err: any) {
         res.status(500).json({ message: err.message });
+    }
+});
+
+// @route   POST /api/bookings/:id/cancel
+// @desc    Cancel a booking
+router.post('/bookings/:id/cancel', async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+
+        if (booking.status === 'Cancelled') {
+            return res.status(400).json({ message: 'Booking is already cancelled' });
+        }
+
+        // Update booking status
+        booking.status = 'Cancelled';
+        await booking.save();
+
+        // Restore slot to Expert's availability
+        await Expert.updateOne(
+            { _id: booking.expertId, 'availableSlots.date': booking.date },
+            { $addToSet: { 'availableSlots.$.times': booking.timeSlot } }
+        );
+
+        res.json({ message: 'Booking cancelled successfully', booking });
+    } catch (err: any) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
     }
 });
 

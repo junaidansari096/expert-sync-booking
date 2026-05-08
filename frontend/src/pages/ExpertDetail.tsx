@@ -1,17 +1,36 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { Star, ArrowLeft, Loader2, CalendarDays, Clock, User, Check, MonitorPlay } from 'lucide-react';
 
 let socket: Socket;
 
+// The standard full schedule to render empty/occupied seats properly
+const DAILY_TIMES = [
+  '09:00 AM - 10:30 AM',
+  '10:30 AM - 12:00 PM',
+  '12:00 PM - 01:30 PM',
+  '03:30 PM - 05:00 PM',
+  '05:00 PM - 06:30 PM',
+  '06:30 PM - 08:00 PM'
+];
+
 export default function ExpertDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [expert, setExpert] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Seat booking state
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedTime, setSelectedTime] = useState<string>('');
+  
+  const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Connect to Socket
     socket = io('http://localhost:5000');
 
     socket.on('slotBooked', (data: { expertId: string, date: string, timeSlot: string }) => {
@@ -23,7 +42,7 @@ export default function ExpertDetail() {
               return { ...slot, times: slot.times.filter((t: string) => t !== data.timeSlot) };
             }
             return slot;
-          }).filter((slot: any) => slot.times.length > 0);
+          });
           return { ...prevExpert, availableSlots: newSlots };
         });
       }
@@ -39,6 +58,9 @@ export default function ExpertDetail() {
       try {
         const { data } = await axios.get(`http://localhost:5000/api/experts/${id}`);
         setExpert(data);
+        if (data.availableSlots && data.availableSlots.length > 0) {
+          setSelectedDate(data.availableSlots[0].date);
+        }
       } catch (error) {
         console.error('Error fetching expert', error);
       } finally {
@@ -48,67 +70,250 @@ export default function ExpertDetail() {
     fetchExpert();
   }, [id]);
 
+  useGSAP(() => {
+    if (!loading && expert) {
+      const tl = gsap.timeline();
+      
+      tl.fromTo('.profile-element',
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power2.out' }
+      )
+      .fromTo('.slot-card',
+        { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: 'power2.out' },
+        "-=0.3"
+      );
+    }
+  }, { dependencies: [loading, expert], scope: container });
+
+  const handleBookNow = () => {
+    if (selectedDate && selectedTime) {
+      navigate(`/expert/${expert._id}/book?date=${selectedDate}&time=${encodeURIComponent(selectedTime)}`);
+    }
+  };
+
+  const currentDaySlots = useMemo(() => {
+    if (!expert || !selectedDate) return [];
+    const dayData = expert.availableSlots.find((s: any) => s.date === selectedDate);
+    return dayData ? dayData.times : [];
+  }, [expert, selectedDate]);
+
   if (loading) {
-    return <div className="p-8 text-center text-slate-500">Loading expert details...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
+      </div>
+    );
   }
 
   if (!expert) {
-    return <div className="p-8 text-center text-red-500">Expert not found.</div>;
+    return <div className="p-8 text-center text-destructive minimal-card max-w-md mx-auto mt-12 font-medium">Expert not found.</div>;
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row gap-8 items-start">
-        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center text-blue-700 font-bold text-5xl flex-shrink-0">
+    <div ref={container} className="max-w-4xl mx-auto space-y-10 pb-20 pt-6">
+      <Link to="/" className="profile-element inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4 group font-medium text-sm">
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+        Back to Experts
+      </Link>
+
+      <div className="profile-element minimal-card p-8 md:p-10 flex flex-col md:flex-row gap-8 items-start">
+        <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-4xl md:text-5xl tracking-tight flex-shrink-0">
           {expert.name.charAt(0)}
         </div>
-        <div className="flex-1 space-y-4">
-          <div className="flex justify-between items-start">
+        <div className="flex-1 space-y-5">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">{expert.name}</h1>
-              <p className="text-lg text-blue-600 font-medium">{expert.category}</p>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight mb-2">{expert.name}</h1>
+              <div className="flex items-center gap-2 text-foreground/80 font-medium text-lg">
+                <User className="w-5 h-5" />
+                {expert.category}
+              </div>
             </div>
-            <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full font-semibold">
-              <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+            <div className="flex items-center gap-1.5 bg-secondary text-foreground px-3 py-1.5 rounded-md font-semibold self-start text-sm">
+              <Star className="w-4 h-4 fill-foreground" />
               {expert.rating}
             </div>
           </div>
-          <p className="text-slate-600 leading-relaxed">
-            Book a 1-on-1 session with {expert.name} to level up your skills in {expert.category}. With {expert.experience} years of experience, you'll receive practical, actionable advice.
+          <p className="text-muted-foreground leading-relaxed md:text-lg">
+            Book a 1-on-1 session with <span className="text-foreground font-medium">{expert.name}</span> to level up your skills. With <span className="text-foreground font-medium">{expert.experience} years of experience</span>, you'll receive practical, actionable advice tailored to your goals.
           </p>
         </div>
       </div>
 
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-slate-900">Available Time Slots</h2>
+        <h2 className="profile-element text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
+          <CalendarDays className="w-6 h-6" />
+          Seat Selection
+        </h2>
+        
         {expert.availableSlots.length === 0 ? (
-          <div className="p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-center text-slate-500">
-            No slots available at the moment.
+          <div className="profile-element p-12 minimal-card text-center flex flex-col items-center justify-center gap-4">
+            <Clock className="w-10 h-10 text-muted-foreground/50" />
+            <p className="text-lg font-medium text-foreground">No slots available at the moment.</p>
+            <p className="text-sm text-muted-foreground">Please check back later or try another expert.</p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {expert.availableSlots.map((slotDay: any) => (
-              <div key={slotDay.date} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  {new Date(slotDay.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {slotDay.times.map((time: string) => (
-                    <Link
-                      key={time}
-                      to={`/expert/${expert._id}/book?date=${slotDay.date}&time=${encodeURIComponent(time)}`}
-                      className="px-4 py-2 bg-slate-50 hover:bg-blue-600 text-slate-700 hover:text-white rounded-lg text-sm font-medium transition-all shadow-sm border border-slate-200 hover:border-blue-600 hover:shadow-md transform hover:-translate-y-0.5"
+          <div className="slot-card minimal-card p-6 md:p-8 space-y-8">
+            
+            {/* Date Selector */}
+            <div className="space-y-3">
+              <label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Select Date</label>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {expert.availableSlots.map((slotDay: any) => {
+                  const isSelected = selectedDate === slotDay.date;
+                  const d = new Date(slotDay.date);
+                  const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+                  const dateNum = d.getDate();
+                  const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+                  
+                  return (
+                    <button
+                      key={slotDay.date}
+                      onClick={() => { setSelectedDate(slotDay.date); setSelectedTime(''); }}
+                      className={`flex-shrink-0 px-5 py-3 rounded-md border flex flex-col items-center gap-1 transition-all duration-200 ${
+                        isSelected 
+                          ? 'bg-foreground text-background border-foreground' 
+                          : 'bg-secondary text-foreground border-border hover:border-foreground/50'
+                      }`}
                     >
-                      {time}
-                    </Link>
-                  ))}
+                      <span className="text-xs font-medium uppercase opacity-80">{dayName}</span>
+                      <span className="text-xl font-bold">{dateNum}</span>
+                      <span className="text-xs font-medium uppercase opacity-80">{monthName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Seat Map */}
+            <div className="bg-secondary rounded-xl p-8 border border-border mt-8">
+              <div className="flex flex-col items-center mb-10">
+                <div className="w-3/4 h-2 bg-gradient-to-b from-foreground/20 to-transparent rounded-t-full mb-2"></div>
+                <div className="flex items-center gap-2 text-muted-foreground uppercase tracking-widest font-semibold text-xs">
+                  <MonitorPlay className="w-4 h-4" />
+                  Consultant Screen
                 </div>
               </div>
-            ))}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-2xl mx-auto justify-items-center">
+                {/* First Row (Before Break) */}
+                {DAILY_TIMES.slice(0, 3).map((time) => {
+                  const isAvailable = currentDaySlots.includes(time);
+                  const isSelected = selectedTime === time;
+                  return (
+                    <button
+                      key={time}
+                      disabled={!isAvailable}
+                      onClick={() => setSelectedTime(time)}
+                      className={`relative w-32 h-16 rounded-t-xl rounded-b-md border-2 flex items-center justify-center transition-all duration-300 group ${
+                        !isAvailable 
+                          ? 'bg-border/50 border-border cursor-not-allowed opacity-50'
+                          : isSelected
+                            ? 'bg-foreground border-foreground text-background shadow-[0_0_15px_rgba(255,255,255,0.3)]'
+                            : 'bg-background border-border hover:border-foreground/70 text-foreground'
+                      }`}
+                    >
+                      {/* Seat Armrests aesthetic */}
+                      <div className={`absolute top-2 -left-1 w-1 h-8 rounded-full ${isSelected ? 'bg-background/20' : 'bg-foreground/10'}`}></div>
+                      <div className={`absolute top-2 -right-1 w-1 h-8 rounded-full ${isSelected ? 'bg-background/20' : 'bg-foreground/10'}`}></div>
+                      
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="text-[10px] font-medium tracking-widest opacity-80">{time.split(' - ')[0]}</span>
+                        <span className="text-xs font-bold">{time.split(' - ')[1]}</span>
+                      </div>
+                      
+                      {isSelected && (
+                        <div className="absolute -top-2 -right-2 bg-background border border-foreground text-foreground rounded-full p-0.5">
+                          <Check className="w-3 h-3" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* Aisle / Break Label */}
+                <div className="col-span-1 md:col-span-3 flex items-center justify-center w-full my-2">
+                  <div className="h-px bg-border flex-1"></div>
+                  <span className="px-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">2 Hour Break Aisle</span>
+                  <div className="h-px bg-border flex-1"></div>
+                </div>
+
+                {/* Second Row (After Break) */}
+                {DAILY_TIMES.slice(3, 6).map((time) => {
+                  const isAvailable = currentDaySlots.includes(time);
+                  const isSelected = selectedTime === time;
+                  return (
+                    <button
+                      key={time}
+                      disabled={!isAvailable}
+                      onClick={() => setSelectedTime(time)}
+                      className={`relative w-32 h-16 rounded-t-xl rounded-b-md border-2 flex items-center justify-center transition-all duration-300 group ${
+                        !isAvailable 
+                          ? 'bg-border/50 border-border cursor-not-allowed opacity-50'
+                          : isSelected
+                            ? 'bg-foreground border-foreground text-background shadow-[0_0_15px_rgba(255,255,255,0.3)]'
+                            : 'bg-background border-border hover:border-foreground/70 text-foreground'
+                      }`}
+                    >
+                      {/* Seat Armrests aesthetic */}
+                      <div className={`absolute top-2 -left-1 w-1 h-8 rounded-full ${isSelected ? 'bg-background/20' : 'bg-foreground/10'}`}></div>
+                      <div className={`absolute top-2 -right-1 w-1 h-8 rounded-full ${isSelected ? 'bg-background/20' : 'bg-foreground/10'}`}></div>
+                      
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="text-[10px] font-medium tracking-widest opacity-80">{time.split(' - ')[0]}</span>
+                        <span className="text-xs font-bold">{time.split(' - ')[1]}</span>
+                      </div>
+                      
+                      {isSelected && (
+                        <div className="absolute -top-2 -right-2 bg-background border border-foreground text-foreground rounded-full p-0.5">
+                          <Check className="w-3 h-3" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-12 flex justify-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-border bg-background"></div>
+                  <span className="text-xs font-medium uppercase text-muted-foreground tracking-wider">Available</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-foreground bg-foreground"></div>
+                  <span className="text-xs font-medium uppercase text-muted-foreground tracking-wider">Selected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-border bg-border/50 opacity-50"></div>
+                  <span className="text-xs font-medium uppercase text-muted-foreground tracking-wider">Occupied</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex justify-between items-center pt-6 border-t border-border mt-8">
+              <div className="text-sm font-medium text-muted-foreground">
+                {selectedTime ? (
+                  <span>Selected: <span className="text-foreground font-bold">{selectedTime}</span></span>
+                ) : (
+                  <span>Please select a seat</span>
+                )}
+              </div>
+              <button
+                onClick={handleBookNow}
+                disabled={!selectedTime}
+                className="px-8 py-3 bg-foreground text-background font-bold uppercase tracking-wider text-sm rounded-md hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Continue to Booking
+              </button>
+            </div>
+
           </div>
         )}
       </div>
     </div>
   );
 }
+

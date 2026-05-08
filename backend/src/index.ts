@@ -27,36 +27,56 @@ connectDB().then(async () => {
     // Seed initial data if empty
     const count = await Expert.countDocuments();
     if (count === 0) {
+        const generateSlots = (daysToGenerate: number) => {
+            const slots = [];
+            let currentDate = new Date();
+            let addedDays = 0;
+            const dailyTimes = [
+                '09:00 AM - 10:30 AM',
+                '10:30 AM - 12:00 PM',
+                '12:00 PM - 01:30 PM',
+                '03:30 PM - 05:00 PM',
+                '05:00 PM - 06:30 PM',
+                '06:30 PM - 08:00 PM'
+            ];
+            while (addedDays < daysToGenerate) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                const dayOfWeek = currentDate.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    const year = currentDate.getFullYear();
+                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(currentDate.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    slots.push({ date: dateStr, times: [...dailyTimes] });
+                    addedDays++;
+                }
+            }
+            return slots;
+        };
+
+        const dynamicSlots = generateSlots(7);
+
         const experts = [
             {
                 name: 'Dr. Sarah Connor',
                 category: 'Tech Consultant',
                 experience: 10,
                 rating: 4.8,
-                availableSlots: [
-                    { date: '2026-05-15', times: ['10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '02:00 PM - 03:00 PM'] },
-                    { date: '2026-05-16', times: ['09:00 AM - 10:00 AM', '01:00 PM - 02:00 PM'] }
-                ]
+                availableSlots: JSON.parse(JSON.stringify(dynamicSlots))
             },
             {
                 name: 'John Smith',
                 category: 'Career Coach',
                 experience: 5,
                 rating: 4.5,
-                availableSlots: [
-                    { date: '2026-05-15', times: ['09:00 AM - 10:00 AM', '03:00 PM - 04:00 PM'] },
-                    { date: '2026-05-17', times: ['10:00 AM - 11:00 AM'] }
-                ]
+                availableSlots: JSON.parse(JSON.stringify(dynamicSlots))
             },
             {
                 name: 'Emily Davis',
                 category: 'Fitness Trainer',
                 experience: 8,
                 rating: 4.9,
-                availableSlots: [
-                    { date: '2026-05-15', times: ['06:00 AM - 07:00 AM', '07:00 AM - 08:00 AM'] },
-                    { date: '2026-05-16', times: ['06:00 AM - 07:00 AM', '05:00 PM - 06:00 PM'] }
-                ]
+                availableSlots: JSON.parse(JSON.stringify(dynamicSlots))
             }
         ];
         await Expert.insertMany(experts);

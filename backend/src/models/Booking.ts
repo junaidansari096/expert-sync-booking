@@ -8,7 +8,7 @@ export interface IBooking extends Document {
     date: string; // YYYY-MM-DD
     timeSlot: string;
     notes?: string;
-    status: 'Pending' | 'Confirmed' | 'Completed';
+    status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
 }
 
 const BookingSchema: Schema = new Schema({
@@ -19,10 +19,16 @@ const BookingSchema: Schema = new Schema({
     date: { type: String, required: true },
     timeSlot: { type: String, required: true },
     notes: { type: String },
-    status: { type: String, enum: ['Pending', 'Confirmed', 'Completed'], default: 'Pending' }
+    status: { type: String, enum: ['Pending', 'Confirmed', 'Completed', 'Cancelled'], default: 'Pending' }
 }, { timestamps: true });
 
-// Prevent double booking using a unique compound index
-BookingSchema.index({ expertId: 1, date: 1, timeSlot: 1 }, { unique: true });
+// Prevent double booking using a unique compound index (ignore cancelled bookings)
+BookingSchema.index(
+    { expertId: 1, date: 1, timeSlot: 1 }, 
+    { 
+        unique: true, 
+        partialFilterExpression: { status: { $ne: 'Cancelled' } } 
+    }
+);
 
 export default mongoose.model<IBooking>('Booking', BookingSchema);
