@@ -14,19 +14,12 @@ services:
         value: 5000
 
   # Frontend Static Site
-  - type: web
+  - type: static
     name: expert-sync-frontend
-    runtime: static
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishPath: dist
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: no-cache
-    staticPublishCustomHeaders: []
-    # Redirect all routes to index.html for React Router
+    staticPublishPath: dist
     routes:
       - type: rewrite
         source: /*
