@@ -1,9 +1,7 @@
 services:
-  # Backend Web Service
   - type: web
     name: expert-sync-backend
     runtime: node
-    plan: free
     rootDir: backend
     buildCommand: npm install && npm run build
     startCommand: npm start
@@ -15,14 +13,12 @@ services:
       - key: NODE_VERSION
         value: 20
 
-  # Frontend Static Site
   - type: web
     name: expert-sync-frontend
     runtime: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishPath: dist
+    staticPublishPath: dist
     routes:
       - type: rewrite
         source: /*
