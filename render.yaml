@@ -16,8 +16,9 @@ services:
         value: 20
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: expert-sync-frontend
+    runtime: static
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
